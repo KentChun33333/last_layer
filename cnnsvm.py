@@ -67,15 +67,16 @@ class cnnsvm_class(object):
         # Combine all the pooled features
         num_filters_total = num_filters * len(filter_sizes)
         self.h_pool = tf.concat(3, pooled_outputs)
-        self.h_pool_flat = tf.reshape(self.h_pool, [-1, num_filters_total])
+        feature = tf.reshape(self.h_pool, [-1, num_filters_total])
+        feature = tf.concat(1, [feature, feature**2])
 
         # Final (unnormalized) scores and predictions
         with tf.name_scope("output"):
-            self.W = tf.Variable(tf.truncated_normal([num_filters_total, num_classes], stddev=0.1), name="W")
+            self.W = tf.Variable(tf.truncated_normal([num_filters_total * 2, num_classes], stddev=0.1), name="W")
             b = tf.Variable(tf.constant(0.1, shape=[num_classes]), name="b")
             l2_loss += tf.nn.l2_loss(self.W)
             l2_loss += tf.nn.l2_loss(b)
-            self.scores = tf.nn.xw_plus_b(self.h_pool_flat, self.W, b, name="scores")
+            self.scores = tf.nn.xw_plus_b(feature, self.W, b, name="scores")
             self.predictions = tf.argmax(self.scores, 1, name="predictions")
             
             with tf.device('/cpu:0'), tf.name_scope("eps"):
