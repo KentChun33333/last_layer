@@ -45,7 +45,7 @@ print("")
 
 # Data Preparatopn
 # ==================================================
-# Load data
+# Load data # test
 print("Loading data...")
 x_, y_, vocabulary, vocabulary_inv, test_size = data_helpers.load_data(FLAGS.vn, FLAGS.dataset)
 
