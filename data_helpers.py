@@ -26,64 +26,77 @@ def clean_str(string):
     return string.strip().lower()
 
 def clean_str_vn(string):
-    """
-    Tokenization/string cleaning for all datasets except for SST.
-    """
-    string = re.sub(r"[~`@#$%^&*-+]", " ", string)    
-    def sharp(str):
-        b = re.sub('\s[A-Za-z]\s\.', ' .', ' '+str)
-        while (b.find('. . ')>=0): b = re.sub(r'\.\s\.\s', '. ', b)
-        b = re.sub(r'\s\.\s', ' # ', b)
-        return b
-    string = sharp(string)
-    string = re.sub(r" : ", ":", string)
-    string = re.sub(r",", " , ", string)
-    string = re.sub(r"!", " ! ", string)
-    string = re.sub(r"\(", " \( ", string)
-    string = re.sub(r"\)", " \) ", string)
-    string = re.sub(r"\?", " \? ", string)
-    string = re.sub(r"\s{2,}", " ", string)
-    return string.strip().lower()
+	"""
+	Tokenization/string cleaning for all datasets except for SST.
+	"""
+	string = re.sub(r"[~`@#$%^&*+-]", " ", string)
+	# This transforms acronyms into sharp(#)
+	string = re.sub('\s[A-Za-z]\s\.', '#', ' '+string)
+	string = re.sub('#{2,}', '#', string)
+	# Normal regularization
+	string = re.sub(r" : ", ":", string)
+	string = re.sub(r",", " , ", string)
+	string = re.sub(r"!", " ! ", string)
+	string = re.sub(r"\(", " \( ", string)
+	string = re.sub(r"\)", " \) ", string)
+	string = re.sub(r"\?", " \? ", string)
+	string = re.sub(r"\.{2,}", " ", string)
+	string = re.sub(r"\s{2,}", " ", string)
+	return string.strip().lower()
 
-def load_data_and_labels(vn):
-    """
-    Loads data from files, splits the data into words and generates labels.
-    Returns split sentences and labels.
-    """
-    # Load data from files
-    folder_prefix = 'data' + int(vn)*'vn' + '/'
-    x_train = list(open(folder_prefix+"train").readlines())
-    x_test = list(open(folder_prefix+"test").readlines())
-    test_size = len(x_test)
-    x_text = x_train + x_test
-    # Split by words
-    if not vn:
-        clean_func = clean_str
-    else:
-        clean_func = clean_str_vn
-    x_text = [clean_func(sent) for sent in x_text]
-    y = [s.split(' ')[0].split(':')[0] for s in x_text]
-    x_text = [s.split(" ")[1:] for s in x_text]
-    # Generate labels
-    all_label = dict()
-    for label in y:
-        if not label in all_label: 
-            all_label[label] = len(all_label) + 1
-    one_hot = np.identity(len(all_label))
-    y = [one_hot[ all_label[label]-1 ] for label in y]
-    return [x_text, y, test_size]
+def load_data_and_labels(vn, dataset):
+	"""
+	Loads data from files, splits the data into words and generates labels.
+	Returns split sentences and labels.
+	"""
+	# clean func
+	if not vn:
+		clean_func = clean_str
+	else:
+		clean_func = clean_str_vn
 
-def load_trained_vecs(vn, vn_file, en_file, vocabulary):
-    folder_prefix = 'data' + int(vn)*'vn' + '/'
-    if not os.path.exists(folder_prefix + 'trained_vecs.PICKLE'):
-        binfile = int(vn)*vn_file + (1-int(vn))*en_file
-        trained_vecs = load_bin_vec(folder_prefix + binfile, vocabulary)
-        with open(folder_prefix + 'trained_vecs.PICKLE', 'wb') as f:
-            pickle.dump([trained_vecs],f,protocol=-1)
-    else:
-        with open(folder_prefix + 'trained_vecs.PICKLE', 'rb') as f:
-            trained_vecs = pickle.load(f)[0]
-    return trained_vecs
+	# Load data from files
+	folder_prefix = dataset + int(vn)*'vn' + '/'
+	x_train = list(open(folder_prefix+"train").readlines())
+	x_test = list(open(folder_prefix+"test").readlines())
+	test_size = len(x_test)
+	x_text = x_train + x_test
+
+    # Split
+	if dataset == "TREC":
+		x_text = [clean_func(sent) for sent in x_text]
+		y = [s.split(' ')[0].split(':')[0] for s in x_text]
+		x_text = [s.split(" ")[1:] for s in x_text]
+	if dataset == "sentiment":
+		y = [s.split(' ')[-1:][0] for s in x_text]
+		x_text = [' '.join(s.split(' ')[:-1]) for s in x_text]
+		x_text = [clean_func(sent) for sent in x_text]
+		x_text = [s.split(' ') for s in x_text]
+	else:
+		# other dataset in the future goes here
+		pass
+
+	# Generate labels
+	all_label = dict()
+	for label in y:
+		if not label in all_label: 
+			all_label[label] = len(all_label) + 1
+	one_hot = np.identity(len(all_label))
+	y = [one_hot[ all_label[label]-1] for label in y]
+	return [x_text, y, test_size]
+
+def load_trained_vecs(vn, vn_file, en_file, vocabulary, dataset):
+	bin_prefix = '../jaist_files/'
+	folder_prefix = dataset + int(vn)*'vn' + '/'
+	if not os.path.exists(folder_prefix + 'trained_vecs.PICKLE'):
+		binfile = int(vn)*vn_file + (1-int(vn))*en_file
+		trained_vecs = load_bin_vec(bin_prefix + binfile, vocabulary)
+		with open(folder_prefix + 'trained_vecs.PICKLE', 'wb') as f:
+			pickle.dump([trained_vecs],f,protocol=-1)
+	else:
+		with open(folder_prefix + 'trained_vecs.PICKLE', 'rb') as f:
+			trained_vecs = pickle.load(f)[0]
+	return trained_vecs
 
 def pad_sentences(sentences, padding_word="<PAD/>"):
     """
@@ -124,13 +137,13 @@ def build_input_data(sentences, labels, vocabulary):
     y = np.array(labels)
     return [x, y]
 
-def load_data(vn):
+def load_data(vn, dataset):
     """
     Loads and preprocessed data
     Returns input vectors, labels, vocabulary, and inverse vocabulary.
     """
     # Load and preprocess data
-    sentences, labels, test_size = load_data_and_labels(vn)
+    sentences, labels, test_size = load_data_and_labels(vn, dataset)
     sentences_padded = pad_sentences(sentences)
     vocabulary, vocabulary_inv = build_vocab(sentences_padded)
     x, y = build_input_data(sentences_padded, labels, vocabulary)

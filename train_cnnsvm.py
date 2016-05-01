@@ -32,6 +32,7 @@ tf.flags.DEFINE_integer("checkpoint_every", 100, "Save model after this many ste
 tf.flags.DEFINE_boolean("vn", False, "Use Vietnamese dataset")
 tf.flags.DEFINE_string("en_embeddings", "GoogleNews-vectors-negative300.bin", "English pre-trained words file name")
 tf.flags.DEFINE_string("vn_embeddings", "vectors-phrase.bin.vn", "Vietnamese pre-trained words file name")
+tf.flags.DEFINE_string("dataset","TREC","The problem's dataset")
 
 # Misc Parameters
 tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
@@ -48,11 +49,11 @@ print("")
 # ==================================================
 # Load data
 print("Loading data...")
-x_, y_, vocabulary, vocabulary_inv, test_size = data_helpers.load_data(FLAGS.vn)
+x_, y_, vocabulary, vocabulary_inv, test_size = data_helpers.load_data(FLAGS.vn, FLAGS.dataset)
 
 print("Loading pre-trained vectors...")
 trained_vecs = data_helpers.load_trained_vecs(
-    FLAGS.vn, FLAGS.vn_embeddings, FLAGS.en_embeddings, vocabulary)
+    FLAGS.vn, FLAGS.vn_embeddings, FLAGS.en_embeddings, vocabulary, FLAGS.dataset)
 
 # Create embedding lookup table
 count = data_helpers.add_unknown_words(trained_vecs, vocabulary)
@@ -121,7 +122,7 @@ with tf.Graph().as_default():
 
         # Output directory for models and summaries
         timestamp = str(int(time.time()))
-        run_folder = 'cnnsvm_run' + int(FLAGS.vn)*'_vn'
+        run_folder = 'cnnsvm_run_' + FLAGS.dataset + int(FLAGS.vn)*'_vn'
         out_dir = os.path.abspath(os.path.join(os.path.curdir, run_folder, timestamp))
         print("Writing to {}\n".format(out_dir))
 
