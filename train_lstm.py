@@ -118,7 +118,7 @@ with tf.Graph().as_default():
 
         # Output directory for models and summaries
         timestamp = str(int(time.time()))
-        run_folder = 'lstm_run_' + FLAGS.datset + int(FLAGS.vn)*'_vn'
+        run_folder = 'lstm_run_' + FLAGS.dataset + int(FLAGS.vn)*'_vn'
         out_dir = os.path.abspath(os.path.join(os.path.curdir, run_folder, timestamp))
         print("Writing to {}\n".format(out_dir))
 
